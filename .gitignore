@@ -1,0 +1,23 @@
+# Data
+data/raw/
+data/processed/models/
+data/processed/*.pkl
+data/processed/*.json
+data/processed/*.png
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.env
+venv/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
