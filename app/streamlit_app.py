@@ -105,7 +105,7 @@ with st.sidebar:
 
     st.divider()
     st.subheader("页面导航")
-    page = st.radio("", ["推荐结果", "算法对比", "数据探索", "关于系统"])
+    page = st.radio("页面导航", ["推荐结果", "算法对比", "数据探索"], label_visibility="collapsed")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -148,7 +148,7 @@ if page == "推荐结果":
             .sort_values("rating", ascending=False).head(20))
     st.dataframe(
         hist[["title_clean", "rating"]].rename(columns={"title_clean": "电影", "rating": "评分"}),
-        use_container_width=True, hide_index=True
+        width='stretch', hide_index=True
     )
 
 
@@ -168,7 +168,7 @@ elif page == "算法对比":
     st.subheader("综合指标表")
     st.dataframe(df.style.highlight_min(subset=["RMSE", "MAE"], color="#ffd6d6")
                         .highlight_max(subset=[c for c in df.columns if c not in ("RMSE","MAE")], color="#d6f5d6"),
-                 use_container_width=True)
+                 width='stretch')
 
     st.divider()
     metrics_list = list(df.columns)
@@ -188,7 +188,7 @@ elif page == "算法对比":
             xaxis_title="算法", yaxis_title="分数",
             legend_title="指标", height=450,
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
     st.divider()
     st.subheader("雷达图（排名类指标）")
@@ -207,7 +207,7 @@ elif page == "算法对比":
             polar=dict(radialaxis=dict(visible=True)),
             showlegend=True, height=420, title="推荐质量雷达图"
         )
-        st.plotly_chart(fig_radar, use_container_width=True)
+        st.plotly_chart(fig_radar, width='stretch')
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -234,7 +234,7 @@ elif page == "数据探索":
                       labels={"x": "评分", "y": "数量"},
                       color=rating_counts.values, color_continuous_scale="Blues")
         fig1.update_layout(height=320, showlegend=False)
-        st.plotly_chart(fig1, use_container_width=True)
+        st.plotly_chart(fig1, width='stretch')
 
     with col2:
         st.subheader("用户评分数分布（前50%）")
@@ -244,7 +244,7 @@ elif page == "数据探索":
                             labels={"value": "评分数", "count": "用户数"},
                             color_discrete_sequence=["#2c5f8a"])
         fig2.update_layout(height=320, showlegend=False)
-        st.plotly_chart(fig2, use_container_width=True)
+        st.plotly_chart(fig2, width='stretch')
 
     st.subheader("Top-20 最多评分电影")
     movie_counts = (all_ratings.groupby("movie_id").size()
@@ -255,65 +255,13 @@ elif page == "数据探索":
                   color="n_ratings", color_continuous_scale="Blues",
                   labels={"n_ratings": "评分数", "title_clean": "电影"})
     fig3.update_layout(height=520, yaxis=dict(autorange="reversed"), showlegend=False)
-    st.plotly_chart(fig3, use_container_width=True)
+    st.plotly_chart(fig3, width='stretch')
 
     st.subheader("各类型电影数量")
     genre_series = movies["genre_list"].explode().value_counts()
     fig4 = px.pie(values=genre_series.values, names=genre_series.index,
                   title="电影类型分布", hole=0.35)
     fig4.update_layout(height=420)
-    st.plotly_chart(fig4, use_container_width=True)
+    st.plotly_chart(fig4, width='stretch')
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Page: About
-# ─────────────────────────────────────────────────────────────────────────────
-elif page == "关于系统":
-    st.header("关于本系统")
-    st.markdown("""
-### 电影推荐系统
-
-本系统是《数据分析与挖掘》课程的期末项目，选题为**选项 C：端到端应用系统开发**。
-
----
-
-#### 数据集
-| 数据集 | 来源 | 规模 |
-|--------|------|------|
-| MovieLens 1M | GroupLens Research | 100万条评分，6040名用户，3900部电影 |
-
----
-
-#### 实现算法
-
-| 算法 | 类型 | 核心思路 |
-|------|------|---------|
-| **UserCF** | 协同过滤 | 基于用户相似度，聚合邻居评分 |
-| **ItemCF** | 协同过滤 | 基于物品相似度，加权已评物品 |
-| **FunkSVD** | 矩阵分解 | SGD优化隐因子，含用户/物品偏置 |
-| **ContentBased** | 内容推荐 | TF-IDF特征 + 用户画像余弦相似度 |
-| **Hybrid** | 混合推荐 | 自适应加权融合ItemCF与Content-Based |
-
----
-
-#### 评估指标
-- **评分预测**：RMSE、MAE
-- **排序质量**：Precision@10、Recall@10、NDCG@10
-- **多样性**：Coverage、Diversity
-
----
-
-#### 技术栈
-`Python 3.12` · `NumPy` · `Pandas` · `Scikit-learn` · `Streamlit` · `Plotly`
-
----
-
-#### 使用方法
-```bash
-# 1. 训练所有模型（首次运行需下载数据，约5分钟）
-python main.py
-
-# 2. 启动演示界面
-streamlit run app/streamlit_app.py
-```
-    """)
