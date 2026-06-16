@@ -19,7 +19,7 @@ from src.models.svd_model import FunkSVD
 from src.models.content_based import ContentBasedRecommender
 from src.models.hybrid import HybridRecommender
 from src.evaluation.evaluator import full_evaluate
-from src.utils.helpers import save_results, plot_comparison, results_to_dataframe
+from src.utils.helpers import save_results, results_to_dataframe
 
 PROCESSED_DIR = os.path.join(os.path.dirname(__file__), "data", "processed")
 MODELS_DIR = os.path.join(PROCESSED_DIR, "models")

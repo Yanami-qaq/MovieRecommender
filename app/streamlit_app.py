@@ -59,6 +59,13 @@ def load_everything():
     movies = pd.read_pickle(os.path.join(PROCESSED_DIR, "movies.pkl"))
     content_features = pd.read_pickle(os.path.join(PROCESSED_DIR, "content_features.pkl"))
 
+    users_path = os.path.join(PROCESSED_DIR, "users.pkl")
+    if os.path.exists(users_path):
+        users = pd.read_pickle(users_path)
+    else:
+        from src.data.loader import load_users, ensure_data
+        users = load_users(ensure_data())
+
     model_names = ["UserCF", "ItemCF", "FunkSVD", "ContentBased", "Hybrid"]
     models = {}
     for name in model_names:
@@ -75,7 +82,7 @@ def load_everything():
         with open(results_path, "r") as f:
             results = json.load(f)
 
-    return train, test, movies, content_features, models, results
+    return train, test, movies, content_features, models, results, users
 
 
 def check_pipeline_ready():
@@ -94,7 +101,7 @@ with st.sidebar:
         st.error("未检测到训练好的模型，请先运行 `python main.py`")
         st.stop()
 
-    train, test, movies, content_features, models, eval_results = load_everything()
+    train, test, movies, content_features, models, eval_results, users = load_everything()
 
     st.subheader("参数设置")
     algorithm = st.selectbox("推荐算法", list(models.keys()))
@@ -263,5 +270,25 @@ elif page == "数据探索":
                   title="电影类型分布", hole=0.35)
     fig4.update_layout(height=420)
     st.plotly_chart(fig4, width='stretch')
+
+    if users is not None and "gender" in users.columns:
+        st.subheader("用户画像与评分")
+        merged = all_ratings.merge(users, on="user_id", how="left")
+        col_a, col_b = st.columns(2)
+        with col_a:
+            gender_stats = merged.groupby("gender")["rating"].mean().reset_index()
+            gender_stats["gender"] = gender_stats["gender"].map({"M": "男", "F": "女"})
+            fig5 = px.bar(gender_stats, x="gender", y="rating",
+                          labels={"gender": "性别", "rating": "平均评分"},
+                          color="gender", color_discrete_map={"男": "#4a90d9", "女": "#d94a4a"})
+            fig5.update_layout(height=320, showlegend=False)
+            st.plotly_chart(fig5, width='stretch')
+        with col_b:
+            age_stats = merged.groupby("age")["rating"].mean().reset_index()
+            fig6 = px.bar(age_stats, x="age", y="rating",
+                          labels={"age": "年龄段", "rating": "平均评分"},
+                          color="rating", color_continuous_scale="Blues")
+            fig6.update_layout(height=320, showlegend=False)
+            st.plotly_chart(fig6, width='stretch')
 
 
