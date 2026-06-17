@@ -16,6 +16,7 @@ sys.path.insert(0, ROOT)
 
 PROCESSED_DIR = os.path.join(ROOT, "data", "processed")
 MODELS_DIR = os.path.join(PROCESSED_DIR, "models")
+ALGORITHM_ORDER = ["ItemCF", "FunkSVD", "ContentBased", "Hybrid", "UserCF"]
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Page config
@@ -66,9 +67,8 @@ def load_everything():
         from src.data.loader import load_users, ensure_data
         users = load_users(ensure_data())
 
-    model_names = ["UserCF", "ItemCF", "FunkSVD", "ContentBased", "Hybrid"]
     models = {}
-    for name in model_names:
+    for name in ALGORITHM_ORDER:
         pkl_path = os.path.join(MODELS_DIR, f"{name}.pkl")
         if os.path.exists(pkl_path):
             with open(pkl_path, "rb") as f:
@@ -89,6 +89,45 @@ def check_pipeline_ready():
     return os.path.exists(os.path.join(MODELS_DIR, "FunkSVD.pkl"))
 
 
+AGE_LABELS = {
+    1: "18岁以下", 2: "18-24岁", 3: "25-34岁", 4: "35-44岁",
+    5: "45-49岁", 6: "50-55岁", 7: "56岁以上",
+}
+GENDER_LABELS = {"M": "男", "F": "女"}
+OCCUPATION_LABELS = {
+    0: "其他", 1: "教育", 2: "艺术", 3: "行政", 4: "大学生",
+    5: "客服", 6: "医护", 7: "管理", 8: "农业", 9: "家庭主妇",
+    10: "中小学生", 11: "法律", 12: "程序员", 13: "退休", 14: "销售",
+    15: "科研", 16: "个体经营", 17: "工程师", 18: "技工", 19: "待业", 20: "作家",
+}
+
+
+@st.cache_data
+def build_user_labels(users: pd.DataFrame) -> dict:
+    """Map user_id -> display label with demographics."""
+    labels = {}
+    for _, row in users.iterrows():
+        uid = int(row["user_id"])
+        gender = GENDER_LABELS.get(row["gender"], row["gender"])
+        age = AGE_LABELS.get(row["age"], str(row["age"]))
+        job = OCCUPATION_LABELS.get(row["occupation"], str(row["occupation"]))
+        labels[uid] = f"ID {uid} · {gender} · {age} · {job}"
+    return labels
+
+
+def get_user_profile(user_id: int, users: pd.DataFrame) -> dict:
+    row = users[users["user_id"] == user_id]
+    if row.empty:
+        return {}
+    row = row.iloc[0]
+    return {
+        "gender": GENDER_LABELS.get(row["gender"], row["gender"]),
+        "age": AGE_LABELS.get(row["age"], str(row["age"])),
+        "occupation": OCCUPATION_LABELS.get(row["occupation"], str(row["occupation"])),
+        "zip": row["zip"],
+    }
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Sidebar
 # ─────────────────────────────────────────────────────────────────────────────
@@ -104,11 +143,27 @@ with st.sidebar:
     train, test, movies, content_features, models, eval_results, users = load_everything()
 
     st.subheader("参数设置")
-    algorithm = st.selectbox("推荐算法", list(models.keys()))
+    algorithm = st.selectbox(
+        "推荐算法",
+        [name for name in ALGORITHM_ORDER if name in models],
+    )
     top_k = st.slider("推荐数量 Top-K", min_value=5, max_value=20, value=10)
 
     all_users = sorted(train["user_id"].unique())
-    user_id = st.selectbox("选择用户 ID", all_users, index=0)
+    user_labels = build_user_labels(users)
+    user_id = st.selectbox(
+        "选择用户",
+        all_users,
+        index=0,
+        format_func=lambda uid: user_labels.get(uid, f"ID {uid}"),
+    )
+
+    profile = get_user_profile(user_id, users)
+    if profile:
+        st.caption(
+            f"👤 {profile['gender']} · {profile['age']} · {profile['occupation']} · "
+            f"邮编 {profile['zip']}"
+        )
 
     st.divider()
     st.subheader("页面导航")
@@ -119,7 +174,13 @@ with st.sidebar:
 # Page: Recommendation
 # ─────────────────────────────────────────────────────────────────────────────
 if page == "推荐结果":
+    profile = get_user_profile(user_id, users)
+    profile_text = (
+        f"{profile['gender']} · {profile['age']} · {profile['occupation']}"
+        if profile else f"用户 {user_id}"
+    )
     st.header(f"为用户 {user_id} 推荐电影 · {algorithm}")
+    st.caption(profile_text)
 
     user_train = train[train["user_id"] == user_id]
     rated_ids = set(user_train["movie_id"].tolist())
